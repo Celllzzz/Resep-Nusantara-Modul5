@@ -1,14 +1,20 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { User, Loader, Heart, AlertCircle } from 'lucide-react';
+// Hapus 'User' dari lucide-react, kita akan pakai dari AvatarEditor
+import { Loader, Heart, AlertCircle } from 'lucide-react';
 import userService from '../services/userService';
-import recipeService from '../services/recipeService'; // <- Kita butuh ini
+import recipeService from '../services/recipeService';
 import FavoriteRecipeGrid from '../components/profile/FavoriteRecipeGrid';
+
+// --- (MODIFIKASI) Impor komponen baru ---
+import AvatarEditor from '../components/profile/AvatarEditor';
+import UsernameEditor from '../components/profile/UsernameEditor';
 
 /**
  * Komponen placeholder untuk loading profile
  */
 const ProfileLoadingSkeleton = () => (
+  // ... (biarkan kode skeleton apa adanya)
   <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-white/40 mb-8 animate-pulse">
     <div className="flex items-center gap-6">
       <div className="w-24 h-24 md:w-32 md:h-32 bg-slate-200 rounded-full flex-shrink-0"></div>
@@ -36,33 +42,24 @@ export default function ProfilePage({ onRecipeClick }) {
    * lalu mengambil data lengkap setiap resep dari API.
    */
   const loadFavorites = useCallback(async () => {
+    // ... (biarkan fungsi loadFavorites apa adanya)
     setLoading(true);
     setError(null);
     try {
-      // 1. Ambil daftar ID dari localStorage
       const favoriteIds = JSON.parse(localStorage.getItem('favorites') || '[]');
-
       if (favoriteIds.length === 0) {
         setFavoriteRecipes([]);
         setLoading(false);
         return;
       }
-
-      // 2. Buat array berisi "janji" (promise) untuk mengambil data setiap resep
       const fetchPromises = favoriteIds.map(id => 
         recipeService.getRecipeById(id)
       );
-
-      // 3. Jalankan semua janji secara bersamaan
       const results = await Promise.allSettled(fetchPromises);
-
-      // 4. Proses hasilnya
       const fullRecipes = results
         .filter(result => result.status === 'fulfilled' && result.value.success)
-        .map(result => result.value.data); // Ambil data resepnya
-
+        .map(result => result.value.data);
       setFavoriteRecipes(fullRecipes);
-      
     } catch (err) {
       console.error("Gagal memuat resep favorit:", err);
       setError(err.message || "Gagal memuat data resep favorit.");
@@ -71,29 +68,32 @@ export default function ProfilePage({ onRecipeClick }) {
     }
   }, []);
 
-  // Efek untuk memuat profil dan favorit saat halaman dibuka
-  useEffect(() => {
-    // Muat profil pengguna (ini tetap dari localStorage)
+  // --- (MODIFIKASI) Buat fungsi untuk me-refresh profile ---
+  const refreshProfile = () => {
     const userProfile = userService.getUserProfile();
     setProfile(userProfile);
+  };
+
+  // Efek untuk memuat profil dan favorit saat halaman dibuka
+  useEffect(() => {
+    // --- (MODIFIKASI) Gunakan fungsi refreshProfile ---
+    refreshProfile();
 
     // Muat resep favorit
     loadFavorites();
 
-    // 5. Tambahkan pendengar "sinyal"
-    // Jika ada perubahan favorit (dari FavoriteButton), panggil loadFavorites() lagi
+    // ... (sisa event listener biarkan apa adanya)
     window.addEventListener('favoritesChanged', loadFavorites);
-
-    // 6. Bersihkan pendengar saat komponen ditutup
     return () => {
       window.removeEventListener('favoritesChanged', loadFavorites);
     };
-  }, [loadFavorites]); // Tambahkan loadFavorites sebagai dependensi
+  }, [loadFavorites]);
 
   /**
    * Merender konten bagian favorit berdasarkan status (loading, error, atau sukses)
    */
   const renderFavoriteContent = () => {
+    // ... (biarkan fungsi renderFavoriteContent apa adanya)
     if (loading) {
       return (
         <div className="text-center py-16">
@@ -102,7 +102,6 @@ export default function ProfilePage({ onRecipeClick }) {
         </div>
       );
     }
-
     if (error) {
       return (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
@@ -110,7 +109,7 @@ export default function ProfilePage({ onRecipeClick }) {
           <h3 className="text-xl font-semibold text-red-700">Gagal Memuat Favorit</h3>
           <p className="text-red-600 mt-2 mb-4">{error}</p>
           <button
-            onClick={loadFavorites} // Coba lagi
+            onClick={loadFavorites}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
             Coba Lagi
@@ -118,9 +117,6 @@ export default function ProfilePage({ onRecipeClick }) {
         </div>
       );
     }
-
-    // Jika tidak loading dan tidak error, tampilkan grid
-    // Komponen FavoriteRecipeGrid akan menangani kasus jika 'favoriteRecipes' kosong
     return <FavoriteRecipeGrid recipes={favoriteRecipes} onRecipeClick={onRecipeClick} />;
   };
 
@@ -134,23 +130,22 @@ export default function ProfilePage({ onRecipeClick }) {
         ) : (
           <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-white/40 mb-8">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="relative w-24 h-24 md:w-32 md:h-32 flex-shrink-0">
-                {profile.avatar ? (
-                  <img
-                    src={profile.avatar}
-                    alt="Avatar"
-                    className="w-full h-full rounded-full object-cover shadow-lg"
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border-4 border-white shadow-lg">
-                    <User className="w-16 h-16 text-blue-400" />
-                  </div>
-                )}
-              </div>
+              
+              {/* --- (MODIFIKASI) Ganti tampilan avatar --- */}
+              <AvatarEditor 
+                avatar={profile.avatar} 
+                onSave={refreshProfile} 
+              />
+              
               <div className="text-center md:text-left">
-                <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2">
-                  {profile.username}
-                </h1>
+                
+                {/* --- (MODIFIKASI) Ganti tampilan username --- */}
+                <UsernameEditor 
+                  username={profile.username}
+                  onSave={refreshProfile}
+                />
+                
+                {/* Tampilan Bio dan ID tetap sama */}
                 <p className="text-slate-600 text-lg mb-2">
                   {profile.bio || "Pengguna Resep Nusantara"}
                 </p>
