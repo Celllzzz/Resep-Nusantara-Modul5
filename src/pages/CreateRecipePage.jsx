@@ -5,9 +5,10 @@ import recipeService from '../services/recipeService';
 import uploadService from '../services/uploadService';
 import { saveDraft, loadDraft, deleteDraft, hasDraft, getDraftTimestamp, formatDraftTime } from '../utils/draftStorage';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import { queryCache } from '../utils/queryCache'; // <-- IMPORT CACHE
 
 export default function CreateRecipePage({ onBack, onSuccess }) {
-  // Step state: 'upload' or 'form'
+  // ... (semua state yang ada biarkan)
   const [currentStep, setCurrentStep] = useState('upload');
   
   const [formData, setFormData] = useState({
@@ -34,7 +35,8 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
   const [draftTimestamp, setDraftTimestamp] = useState(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
 
-  // Check for existing draft on mount
+
+  // ... (semua useEffect dan hooks yang ada biarkan)
   useEffect(() => {
     if (hasDraft('create')) {
       const timestamp = getDraftTimestamp('create');
@@ -43,7 +45,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   }, []);
 
-  // Auto-save draft every 30 seconds (only when in form step)
   useEffect(() => {
     if (!autoSaveEnabled || currentStep !== 'form') return;
 
@@ -54,7 +55,8 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     return () => clearInterval(interval);
   }, [formData, ingredients, steps, autoSaveEnabled, currentStep]);
 
-  // Load draft
+  
+  // ... (semua fungsi handler (handleLoadDraft, handleDiscardDraft, dll) biarkan)
   const handleLoadDraft = () => {
     const draft = loadDraft('create');
     if (draft) {
@@ -71,14 +73,12 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Discard draft
   const handleDiscardDraft = () => {
     deleteDraft('create');
     setShowDraftModal(false);
     setDraftTimestamp(null);
   };
 
-  // Save draft manually
   const handleSaveDraft = () => {
     const draftData = {
       formData,
@@ -94,7 +94,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -117,7 +116,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     setError('');
   };
 
-  // Upload image to server
   const handleUploadImage = async () => {
     if (!imageFile) {
       setError('Pilih gambar terlebih dahulu');
@@ -144,7 +142,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Change uploaded image
   const handleChangeImage = () => {
     setCurrentStep('upload');
     setImageFile(null);
@@ -155,7 +152,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Remove image
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
@@ -164,7 +160,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -173,7 +168,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }));
   };
 
-  // Handle ingredient changes
   const handleIngredientChange = (index, field, value) => {
     const newIngredients = [...ingredients];
     newIngredients[index][field] = value;
@@ -190,7 +184,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Handle step changes
   const handleStepChange = (index, value) => {
     const newSteps = [...steps];
     newSteps[index] = value;
@@ -207,7 +200,6 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
-  // Validate form
   const validateForm = () => {
     if (!formData.name.trim()) {
       setError('Nama resep wajib diisi');
@@ -251,7 +243,7 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     return true;
   };
 
-  // Submit form
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -290,6 +282,7 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
       const result = await recipeService.createRecipe(recipeData);
 
       if (result.success) {
+        queryCache.invalidateListCaches(); // <-- MODIFIKASI: Hapus cache list
         alert('Resep berhasil dibuat!');
         deleteDraft('create'); // Clear draft after successful creation
         if (onSuccess) {
@@ -308,6 +301,7 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     }
   };
 
+  // ... (sisa kode JSX biarkan sama)
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50 pb-20 md:pb-8">
       {/* Draft Modal */}
@@ -739,4 +733,3 @@ export default function CreateRecipePage({ onBack, onSuccess }) {
     </div>
   );
 }
-

@@ -1,3 +1,4 @@
+// pwa-assets.config.js
 import {
     defineConfig,
     minimal2023Preset as preset,
@@ -8,5 +9,7 @@ export default defineConfig({
         preset: '2023',
     },
     preset,
-    images: ['public/favicon.ico'],
+    // Ganti 'public/favicon.ico' dengan file PNG resolusi tinggi
+    // 'public/pwa-512x512.png' adalah pilihan yang bagus
+    images: ['public/pwa-512x512.png'],
 })

@@ -1,5 +1,7 @@
+// src/hooks/useRecipes.js
 import { useState, useEffect, useCallback } from 'react';
 import recipeService from '../services/recipeService';
+import { queryCache } from '../utils/queryCache'; // <-- IMPORT CACHE
 
 /**
  * Custom hook for fetching recipes
@@ -11,16 +13,34 @@ export function useRecipes(params = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
+  const paramsKey = JSON.stringify(params); // <-- Kunci stabil untuk cache
 
   const fetchRecipes = useCallback(async () => {
+    const cacheKey = paramsKey;
+    const cachedEntry = queryCache.get(cacheKey); // <-- CEK CACHE
+
+    if (cachedEntry) {
+      setRecipes(cachedEntry.data || []);
+      setPagination(cachedEntry.pagination || null);
+      setLoading(false);
+      setError(null);
+      return; // Data ditemukan di cache
+    }
+
+    // Jika tidak ada di cache, lakukan fetch
     try {
       setLoading(true);
       setError(null);
       const response = await recipeService.getRecipes(params);
       
       if (response.success) {
-        setRecipes(response.data || []);
-        setPagination(response.pagination || null);
+        const data = response.data || [];
+        const pagination = response.pagination || null;
+        setRecipes(data);
+        setPagination(pagination);
+        
+        // <-- SIMPAN KE CACHE
+        queryCache.set(cacheKey, { data, pagination }); 
       } else {
         setError(response.message || 'Failed to fetch recipes');
       }
@@ -30,7 +50,7 @@ export function useRecipes(params = {}) {
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(params)]);
+  }, [paramsKey]); // <-- Gunakan paramsKey sebagai dependency
 
   useEffect(() => {
     fetchRecipes();
@@ -61,6 +81,16 @@ export function useRecipe(id) {
       return;
     }
 
+    const cacheKey = `recipe_${id}`; // <-- Kunci unik untuk resep
+    const cachedEntry = queryCache.get(cacheKey); // <-- CEK CACHE
+
+    if (cachedEntry) {
+      setRecipe(cachedEntry.data);
+      setLoading(false);
+      setError(null);
+      return; // Data ditemukan di cache
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -68,6 +98,8 @@ export function useRecipe(id) {
       
       if (response.success) {
         setRecipe(response.data);
+        // <-- SIMPAN KE CACHE
+        queryCache.set(cacheKey, { data: response.data });
       } else {
         setError(response.message || 'Failed to fetch recipe');
       }

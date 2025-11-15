@@ -5,11 +5,13 @@ import { useReviews, useCreateReview } from '../../hooks/useReviews';
 import { useIsFavorited } from '../../hooks/useFavorites';
 import { getUserIdentifier } from '../../hooks/useFavorites';
 import { formatDate, getDifficultyColor, getStarRating } from '../../utils/helpers';
-import { ArrowLeft, Heart, Clock, Users, ChefHat, Star, Send, Edit, Trash2 } from 'lucide-react';
+// Impor ikon Share2
+import { ArrowLeft, Heart, Clock, Users, ChefHat, Star, Send, Edit, Trash2, Share2 } from 'lucide-react';
 import recipeService from '../../services/recipeService';
 import ConfirmModal from '../modals/ConfirmModal';
 import FavoriteButton from '../common/FavoriteButton';
 import userService from '../../services/userService';
+import { queryCache } from '../../utils/queryCache';
 
 export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'makanan' }) {
   const { recipe, loading: recipeLoading, error: recipeError } = useRecipe(recipeId);
@@ -44,7 +46,9 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
     }
   };
 
-  const colors = categoryColors[category] || categoryColors.makanan;
+  // Gunakan kategori dari resep setelah dimuat untuk warna yang akurat
+  const currentCategory = recipe?.category || category;
+  const colors = categoryColors[currentCategory] || categoryColors.makanan;
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -61,6 +65,7 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
     const success = await createReview(recipeId, reviewData);
     
     if (success) {
+      queryCache.invalidate(`recipe_${recipeId}`);
       setComment('');
       setRating(5);
       setShowReviewForm(false);
@@ -78,6 +83,8 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
       const result = await recipeService.deleteRecipe(recipeId);
       
       if (result.success) {
+        queryCache.invalidateListCaches();
+        queryCache.invalidate(`recipe_${recipeId}`);
         alert('Resep berhasil dihapus!');
         setShowDeleteModal(false);
         if (onBack) {
@@ -91,6 +98,39 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
       alert(err.message || 'Terjadi kesalahan saat menghapus resep');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  /**
+   * Fungsi untuk membagikan resep
+   */
+  const handleShare = async () => {
+    // Buat URL yang bisa dibuka
+    const shareUrl = `${window.location.origin}/resep/${recipe.id}`;
+    const shareData = {
+      title: recipe.name,
+      text: `Lihat resep ${recipe.name} di Resep Nusantara!`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        // Gunakan Web Share API jika tersedia (umumnya di mobile)
+        await navigator.share(shareData);
+      } else if (navigator.clipboard) {
+        // Fallback: Salin ke clipboard jika di desktop
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Link resep disalin ke clipboard!');
+      } else {
+        // Fallback untuk browser yang sangat lama
+        alert('Gunakan browser modern untuk membagikan resep ini.');
+      }
+    } catch (err) {
+      // Jangan tampilkan error jika pengguna membatalkan dialog "bagikan"
+      if (err.name !== 'AbortError') {
+        console.error('Error sharing recipe:', err);
+        alert('Gagal membagikan resep.');
+      }
     }
   };
 
@@ -169,11 +209,17 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
           {/* Action Buttons */}
           {onEdit && (
             <div className="flex gap-2">
+              {/* === TOMBOL BAGIKAN DITAMBAHKAN DI SINI === */}
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden md:inline">Bagikan</span>
+              </button>
+              
               <button
                 onClick={() => {
-                  console.log('🖱️ Edit button clicked in RecipeDetail');
-                  console.log('📝 Recipe ID:', recipeId);
-                  console.log('🔧 onEdit function:', onEdit);
                   onEdit(recipeId);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -181,6 +227,7 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
                 <Edit className="w-4 h-4" />
                 <span className="hidden md:inline">Edit</span>
               </button>
+              
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -212,8 +259,8 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
 
             {/* Category Badge */}
             <div className="absolute bottom-4 left-4">
-              <span className={`${colors.text} ${colors.bg} px-4 py-2 rounded-full text-sm font-semibold`}>
-                {category === 'makanan' ? 'Makanan' : 'Minuman'}
+              <span className={`${colors.text} ${colors.bg} px-4 py-2 rounded-full text-sm font-semibold capitalize`}>
+                {recipe.category}
               </span>
             </div>
           </div>
@@ -456,4 +503,3 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
     </div>
   );
 }
-

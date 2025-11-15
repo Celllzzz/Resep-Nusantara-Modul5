@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Upload, X, Plus, Image as ImageIcon, Loader } from 'lucide-react';
 import recipeService from '../services/recipeService';
 import uploadService from '../services/uploadService';
+import { queryCache } from '../utils/queryCache'; // <-- IMPORT CACHE
 
 export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
+  // ... (semua state yang ada biarkan)
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -27,7 +29,8 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
 
-  // Load recipe data
+
+  // ... (semua useEffect dan handler (loadRecipe, handleImageChange, dll) biarkan)
   useEffect(() => {
     const loadRecipe = async () => {
       try {
@@ -81,7 +84,6 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }
   }, [recipeId]);
 
-  // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -104,7 +106,6 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     setError('');
   };
 
-  // Remove new image (revert to original)
   const handleRemoveNewImage = () => {
     setImageFile(null);
     setImagePreview(null);
@@ -113,12 +114,10 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }
   };
 
-  // Remove original image
   const handleRemoveOriginalImage = () => {
     setCurrentImageUrl('');
   };
 
-  // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -127,7 +126,6 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }));
   };
 
-  // Handle ingredient changes
   const handleIngredientChange = (index, field, value) => {
     const newIngredients = [...ingredients];
     newIngredients[index][field] = value;
@@ -144,7 +142,6 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }
   };
 
-  // Handle step changes
   const handleStepChange = (index, value) => {
     const newSteps = [...steps];
     newSteps[index] = value;
@@ -161,7 +158,6 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }
   };
 
-  // Validate form
   const validateForm = () => {
     if (!formData.name.trim()) {
       setError('Nama resep wajib diisi');
@@ -215,7 +211,7 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     return true;
   };
 
-  // Submit form (PATCH - partial update)
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -278,6 +274,8 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
       const result = await recipeService.updateRecipe(recipeId, updateData);
 
       if (result.success) {
+        queryCache.invalidateListCaches(); // <-- MODIFIKASI: Hapus cache list
+        queryCache.invalidate(`recipe_${recipeId}`); // <-- MODIFIKASI: Hapus cache resep ini
         alert('Resep berhasil diperbarui!');
         if (onSuccess) {
           onSuccess(result.data);
@@ -295,6 +293,7 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     }
   };
 
+  // ... (sisa kode JSX biarkan sama)
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">

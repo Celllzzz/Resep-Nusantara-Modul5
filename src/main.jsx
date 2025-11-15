@@ -1,6 +1,6 @@
 // src/main.jsx
-import { StrictMode, useState } from 'react'
-import { createRoot } from 'react-dom/client'
+import { StrictMode, useState, useEffect } from 'react'; // Impor useEffect
+import { createRoot } from 'react-dom/client';
 import SplashScreen from './pages/SplashScreen';
 import HomePage from './pages/HomePage';
 import MakananPage from './pages/MakananPage';
@@ -22,6 +22,47 @@ function AppRoot() {
   const [selectedCategory, setSelectedCategory] = useState('makanan');
   const [editingRecipeId, setEditingRecipeId] = useState(null);
 
+  // === FUNGSI ROUTING DITAMBAHKAN DI SINI ===
+  useEffect(() => {
+    // Fungsi ini berjalan sekali saat aplikasi pertama kali dimuat
+    const path = window.location.pathname;
+
+    // 1. Cek untuk link resep: /resep/123
+    if (path.startsWith('/resep/')) {
+      const id = path.split('/')[2];
+      if (id) {
+        setSelectedRecipeId(id);
+        setSelectedCategory('makanan'); // Default ke style 'makanan'
+        setMode('detail');
+        setCurrentPage('home'); // Tetapkan halaman dasar
+      }
+    } 
+    // 2. Cek untuk halaman edit: /edit/123
+    else if (path.startsWith('/edit/')) {
+      const id = path.split('/')[2];
+      if (id) {
+        setEditingRecipeId(id);
+        setMode('edit');
+        setCurrentPage('home');
+      }
+    }
+    // 3. Cek untuk halaman buat resep
+    else if (path === '/buat') {
+      setMode('create');
+      setCurrentPage('home');
+    }
+    // 4. Cek untuk halaman utama
+    else if (path === '/makanan') {
+      setCurrentPage('makanan');
+    } else if (path === '/minuman') {
+      setCurrentPage('minuman');
+    } else if (path === '/profile') {
+      setCurrentPage('profile');
+    }
+    // 5. Default akan ke 'home' (sudah di-set di useState)
+
+  }, []); // Array kosong berarti ini hanya berjalan sekali saat mount
+
   const handleSplashComplete = () => {
     setShowSplash(false);
   };
@@ -31,16 +72,22 @@ function AppRoot() {
     setMode('list');
     setSelectedRecipeId(null);
     setEditingRecipeId(null);
+    // Perbarui URL di browser
+    window.history.pushState(null, '', `/${page === 'home' ? '' : page}`);
   };
 
   const handleCreateRecipe = () => {
     setMode('create');
+    // Perbarui URL di browser
+    window.history.pushState(null, '', '/buat');
   };
 
   const handleRecipeClick = (recipeId, category) => {
     setSelectedRecipeId(recipeId);
     setSelectedCategory(category || currentPage);
     setMode('detail');
+    // Perbarui URL di browser
+    window.history.pushState(null, '', `/resep/${recipeId}`);
   };
 
   const handleEditRecipe = (recipeId) => {
@@ -48,26 +95,35 @@ function AppRoot() {
     setEditingRecipeId(recipeId);
     setMode('edit');
     console.log('✅ Mode changed to: edit');
+    // Perbarui URL di browser
+    window.history.pushState(null, '', `/edit/${recipeId}`);
   };
 
   const handleBack = () => {
     setMode('list');
     setSelectedRecipeId(null);
     setEditingRecipeId(null);
+    // Perbarui URL di browser ke halaman list sebelumnya
+    window.history.pushState(null, '', `/${currentPage === 'home' ? '' : currentPage}`);
   };
 
   const handleCreateSuccess = (newRecipe) => {
     alert('Resep berhasil dibuat!');
     setMode('list');
-    // Optionally navigate to the new recipe's category
     if (newRecipe && newRecipe.category) {
       setCurrentPage(newRecipe.category);
+      // Perbarui URL di browser
+      window.history.pushState(null, '', `/${newRecipe.category}`);
+    } else {
+      window.history.pushState(null, '', '/');
     }
   };
 
   const handleEditSuccess = (updatedRecipe) => {
     alert('Resep berhasil diperbarui!');
     setMode('list');
+    // Perbarui URL di browser
+    window.history.pushState(null, '', `/${currentPage === 'home' ? '' : currentPage}`);
   };
 
   const renderCurrentPage = () => {
@@ -109,11 +165,11 @@ function AppRoot() {
       case 'home':
         return <HomePage onRecipeClick={handleRecipeClick} onNavigate={handleNavigation} />;
       case 'makanan':
-        return <MakananPage onRecipeClick={handleRecipeClick} />;
+        return <MakananPage onRecipeClick={(id) => handleRecipeClick(id, 'makanan')} />;
       case 'minuman':
-        return <MinumanPage onRecipeClick={handleRecipeClick} />;
+        return <MinumanPage onRecipeClick={(id) => handleRecipeClick(id, 'minuman')} />;
       case 'profile':
-        return <ProfilePage onRecipeClick={handleRecipeClick} />;
+        return <ProfilePage onRecipeClick={handleRecipeClick} />; // onRecipeClick sudah bisa menangani kategori
       default:
         return <HomePage onRecipeClick={handleRecipeClick} onNavigate={handleNavigation} />;
     }
@@ -156,4 +212,3 @@ createRoot(document.getElementById('root')).render(
     <AppRoot />
   </StrictMode>,
 )
-

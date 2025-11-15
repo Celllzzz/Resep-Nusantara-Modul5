@@ -4,11 +4,10 @@ import { Heart } from 'lucide-react';
 
 /**
  * FavoriteButton Component
- * Toggles favorite status with localStorage support
+ * Menggunakan localStorage untuk menyimpan dan mengambil data favorit
  */
-export default function FavoriteButton({ recipeId, onToggle, showCount = false, initialCount = 0, size = 'md' }) {
+export default function FavoriteButton({ recipeId, size = 'md' }) {
   const [isFavorited, setIsFavorited] = useState(false);
-  const [favoriteCount, setFavoriteCount] = useState(initialCount);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Size variants
@@ -24,41 +23,47 @@ export default function FavoriteButton({ recipeId, onToggle, showCount = false, 
     lg: 'w-6 h-6'
   };
 
-  // Check if recipe is favorited on mount
+  // Periksa status favorit dari localStorage saat komponen dimuat
   useEffect(() => {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    setIsFavorited(favorites.includes(recipeId));
+    try {
+      const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      setIsFavorited(favorites.includes(recipeId));
+    } catch (error) {
+      console.error("Gagal memuat favorit dari localStorage:", error);
+      setIsFavorited(false);
+    }
   }, [recipeId]);
 
-  const handleToggle = async (e) => {
-    e.stopPropagation(); // Prevent card click
+  const handleToggle = (e) => {
+    e.stopPropagation(); // Mencegah klik pada card
     
     setIsAnimating(true);
     setTimeout(() => setIsAnimating(false), 300);
 
-    // Toggle in localStorage
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    const index = favorites.indexOf(recipeId);
-    
+    // Toggle di localStorage
     let newFavoritedState;
-    if (index > -1) {
-      // Remove from favorites
-      favorites.splice(index, 1);
-      newFavoritedState = false;
-      setFavoriteCount(prev => Math.max(0, prev - 1));
-    } else {
-      // Add to favorites
-      favorites.push(recipeId);
-      newFavoritedState = true;
-      setFavoriteCount(prev => prev + 1);
-    }
-    
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-    setIsFavorited(newFavoritedState);
+    try {
+      const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      const index = favorites.indexOf(recipeId);
+      
+      if (index > -1) {
+        // Hapus dari favorit
+        favorites.splice(index, 1);
+        newFavoritedState = false;
+      } else {
+        // Tambah ke favorit
+        favorites.push(recipeId);
+        newFavoritedState = true;
+      }
+      
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      setIsFavorited(newFavoritedState);
 
-    // Call parent callback if provided
-    if (onToggle) {
-      onToggle(recipeId, newFavoritedState);
+      // KIRIM SINYAL GLOBAL BAHWA FAVORIT TELAH BERUBAH
+      window.dispatchEvent(new CustomEvent('favoritesChanged'));
+
+    } catch (error) {
+      console.error("Gagal menyimpan favorit ke localStorage:", error);
     }
   };
 
@@ -76,7 +81,7 @@ export default function FavoriteButton({ recipeId, onToggle, showCount = false, 
         ${isAnimating ? 'scale-125' : 'scale-100'}
         group
       `}
-      title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+      title={isFavorited ? 'Hapus dari favorit' : 'Tambah ke favorit'}
     >
       <Heart 
         className={`
@@ -86,11 +91,6 @@ export default function FavoriteButton({ recipeId, onToggle, showCount = false, 
           ${isAnimating ? 'animate-pulse' : ''}
         `} 
       />
-      {showCount && favoriteCount > 0 && (
-        <span className="text-xs font-semibold">
-          {favoriteCount > 999 ? '999+' : favoriteCount}
-        </span>
-      )}
     </button>
   );
 }
